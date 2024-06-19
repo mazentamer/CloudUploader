@@ -1,0 +1,20 @@
+#!/bin/bash
+
+
+# Check if input argument matches a correct path format
+if [[ "$1" =~ ^(\.?\/?)?(([0-9a-zA-Z]+[\-\_]*)+\/)*[a-zA-Z0-9]+(\.?[a-zA-Z0-9]+)?$ ]];
+then
+	# If path format is correct, check if file to upload actually exists
+	if [ -f "$1" ];
+	then
+		echo 'Path valid and file exists' 
+	else
+		echo "Please verify file's location and if file name is actually valid."
+	fi
+else
+	echo "Invalid Path Format"
+	echo "Syntax: CloudUploader <fileToUpload>"
+fi
+
+
+
