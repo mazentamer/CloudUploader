@@ -1,20 +1,84 @@
 #!/bin/bash
 
-
+AvailabilityCheck() {
 # Check if input argument matches a correct path format
-if [[ "$1" =~ ^(\.?\/?)?(([0-9a-zA-Z]+[\-\_]*)+\/)*[a-zA-Z0-9]+(\.?[a-zA-Z0-9]+)?$ ]];
+if [[ "$1" =~ ^(\.?\/?)?(([0-9a-zA-Z]+[\-\_]*)+\/)*([a-zA-Z0-9]+[\-\_]*)+(\.?[a-zA-Z0-9]+)?$ ]];
 then
 	# If path format is correct, check if file to upload actually exists
 	if [ -f "$1" ];
 	then
 		echo 'Path valid and file exists' 
+		return 0
 	else
 		echo "Please verify file's location and if file name is actually valid."
+		return 1
 	fi
 else
 	echo "Invalid Path Format"
 	echo "Syntax: CloudUploader <fileToUpload>"
+	return 1
+fi
+}
+
+ValidateConnection() {
+
+if aws sts get-caller-identity --profile "$1" > /dev/null 2>&1;
+then	
+	echo "Connection Successful"
+	export AWS_PROFILE="$1"
+	return 0
+else
+	echo "Connection Failed, Check your credentials and authentication"
+	return 1
 fi
 
+}
 
+BucketManager() {
+
+local promptUser bucketName bucketRegion 
+
+if aws s3 ls | grep "$1" > /dev/null 2>&1;
+then
+	echo "Bucket Available"
+else
+	echo "No bucket with provided name, create one? (y/n)"
+
+	read promptUser
+	if [[ $promptUser == 'y' || $promptUser == 'Y' ]];
+	then
+		echo "Available Regions: "
+		aws ec2 describe-regions --all-regions --query "Regions[].RegionName" --output text 
+		read -p "Enter bucket region: " bucketRegion
+		aws s3api create-bucket --bucket "$1" --region $bucketRegion --create-bucket-configuration LocationConstraint=$bucketRegion > /dev/null 2>&1
+	else
+		echo "Check the bucket you're uploading to and try again."
+	fi
+fi
+}
+
+UploadFile() {
+
+local promptUser
+
+echo "Uploading...."
+aws s3 cp "$1" s3://"$2"/
+echo "Uploaded, would you like a link to the object? (y/n)"
+
+read promptUser
+if [[ $promptUser == 'y' || $promptUser == 'Y' ]];
+then
+	echo "https://"$2".s3."$bucketRegion".amazonaws.com/"$1""
+fi
+
+}
+
+if AvailabilityCheck "$1"; 
+then
+	if ValidateConnection "$2"
+	then
+		BucketManager "$3" 
+		UploadFile "$1" "$3"
+	fi
+fi	
 
