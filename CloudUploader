@@ -34,13 +34,16 @@ fi
 
 }
 
+declare bucketRegion
+
 BucketManager() {
 
-local promptUser bucketName bucketRegion 
+local promptUser bucketName 
 
 if aws s3 ls | grep "$1" > /dev/null 2>&1;
 then
 	echo "Bucket Available"
+	bucketRegion=$( aws s3api get-bucket-location --bucket "$1" | sed 's/^.*\ //' | sed 's/[{}"]//g' | tr -d '[:space:]' )
 else
 	echo "No bucket with provided name, create one? (y/n)"
 
@@ -59,16 +62,30 @@ fi
 
 UploadFile() {
 
-local promptUser
+local promptUser fileName fileDir
 
-echo "Uploading...."
-aws s3 cp "$1" s3://"$2"/
+echo "Would you like to store the file inside a subdirectory within the bucket? (y/n)"
+read promptUser
+	
+fileName=$( echo "$1" | sed 's/^.*\///' )
+
+if [[ $promptUser == 'y' || $promptUser == 'Y' ]];
+then
+	read -p "Enter subdirectory name: " fileDir
+	fileName=""$fileDir"/"$fileName""
+	echo "Uploading...."
+	aws s3 cp "$1" s3://"$2"/"$fileDir"/
+else
+	echo "Uploading...."
+	aws s3 cp "$1" s3://"$2"/
+fi
+
 echo "Uploaded, would you like a link to the object? (y/n)"
 
 read promptUser
 if [[ $promptUser == 'y' || $promptUser == 'Y' ]];
 then
-	echo "https://"$2".s3."$bucketRegion".amazonaws.com/"$1""
+	echo "https://"$2".s3."$bucketRegion".amazonaws.com/"$fileName""
 fi
 
 }
